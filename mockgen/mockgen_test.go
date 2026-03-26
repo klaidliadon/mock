@@ -276,9 +276,10 @@ func findMethod(t *testing.T, identifier, methodName string, lines []string) int
 
 func TestGetArgNames(t *testing.T) {
 	for _, testCase := range []struct {
-		name     string
-		method   *model.Method
-		expected []string
+		name       string
+		method     *model.Method
+		packageMap map[string]string
+		expected   []string
 	}{
 		{
 			name: "NamedArg",
@@ -328,9 +329,43 @@ func TestGetArgNames(t *testing.T) {
 			},
 			expected: []string{"firstArg", "arg1"},
 		},
+		{
+			name: "ArgNameConflictsWithPackage",
+			method: &model.Method{
+				In: []*model.Parameter{
+					{
+						Name: "fmt",
+						Type: &model.NamedType{Type: "int"},
+					},
+					{
+						Name: "secondArg",
+						Type: &model.NamedType{Type: "string"},
+					},
+				},
+			},
+			packageMap: map[string]string{"fmt": "fmt"},
+			expected:   []string{"_fmt", "secondArg"},
+		},
+		{
+			name: "VariadicArgNameConflictsWithPackage",
+			method: &model.Method{
+				In: []*model.Parameter{
+					{
+						Name: "firstArg",
+						Type: &model.NamedType{Type: "int"},
+					},
+				},
+				Variadic: &model.Parameter{
+					Name: "fmt",
+					Type: &model.NamedType{Type: "string"},
+				},
+			},
+			packageMap: map[string]string{"fmt": "fmt"},
+			expected:   []string{"firstArg", "_fmt"},
+		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			g := generator{}
+			g := generator{packageMap: testCase.packageMap}
 
 			result := g.getArgNames(testCase.method, true)
 			if !reflect.DeepEqual(result, testCase.expected) {
